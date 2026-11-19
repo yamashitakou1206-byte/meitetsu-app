@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>名鉄 運転士支援システム (MJ10029)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800&family=Noto+Sans+JP:wght@500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --bg-bezel: #15171a;
+    --bg-screen: #d9dde2;
+    --border-grid: #5a6068;
+    --border-dark: #2c3035;
+    --row-even: #e4e7eb;
+    --row-odd: #d5d9df;
+    --row-active: #e27828;
+    --header-gray: #8f96a0;
+    --type-express: #3b479e;
+    --type-local: #2e3338;
+    --type-rapid-exp: #2d4ea3;
+    --type-ltd-exp: #b8232a;
+    --type-rapid-ltd: #9c1b22;
+    --type-semi-exp: #26734d;
+    --type-musky: #1d63b8;
+  }
+
+  * {
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: #101214;
+    color: #111;
+    font-family: 'Noto Sans JP', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  /* 上部操作ツールバー */
+  .control-bar {
+    width: 100%;
+    max-width: 680px;
+    background: #1e2227;
+    color: #f0f3f7;
+    padding: 8px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #333942;
+    font-size: 13px;
+  }
+
+  .control-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .control-bar input[type="text"] {
+    background: #111417;
+    border: 1px solid #48505c;
+    color: #fff;
+    padding: 5px 9px;
+    border-radius: 4px;
+    font-size: 14px;
+    width: 125px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  .btn {
+    background: #2f5fb3;
+    color: #fff;
+    border: none;
+    padding: 6px 11px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn:hover { background: #3b6ec7; }
+  .btn-sub { background: #3b424c; }
+  .btn-sub:hover { background: #4a525e; }
+
+  /* 端末ベゼル外枠 */
+  .tablet-bezel {
+    width: 100%;
+    max-width: 640px;
+    background: var(--bg-bezel);
+    padding: 14px 14px 26px 14px;
+    border-radius: 14px;
+    margin: 10px auto;
+    box-shadow: 0 14px 36px rgba(0,0,0,0.75), inset 0 1px 1px rgba(255,255,255,0.12);
+    position: relative;
+  }
+
+  .bezel-label {
+    position: absolute;
+    bottom: 5px;
+    right: 26px;
+    background: #2b2f35;
+    color: #c5cbd3;
+    font-family: monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    padding: 1px 10px;
+    border: 1px solid #454b54;
+  }
+
+  /* 端末液晶画面 */
+  .screen {
+    background: var(--bg-screen);
+    border: 2px solid #000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: filter 0.2s;
+  }
+  .screen.dimmed {
+    filter: brightness(0.68);
+  }
+
+  /* ステータスバー */
+  .status-bar {
+    background: #cfd4dc;
+    border-bottom: 1px solid var(--border-grid);
+    display: grid;
+    grid-template-columns: 1fr 1.2fr 1.1fr;
+    align-items: center;
+    padding: 2px 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #2b3036;
+  }
+  .status-left { text-align: left; }
+  .status-center { text-align: center; }
+  .status-right {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+  }
+  .brightness-box {
+    display: inline-flex;
+    border: 1px solid #6b727c;
+    background: #dce0e6;
+    font-size: 11px;
+  }
+  .brightness-box span {
+    padding: 0 6px;
+    cursor: pointer;
+    border-right: 1px solid #6b727c;
+  }
+  .brightness-box span:last-child { border-right: none; }
+
+  /* 上部ヘッダグリッド */
+  .top-grid {
+    display: grid;
+    grid-template-columns: 58% 42%;
+    border-bottom: 2px solid var(--border-dark);
+  }
+
+  /* 左上：種別 + 始発/行先 + 列車番号 */
+  .top-left {
+    border-right: 2px solid var(--border-dark);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .train-type-box {
+    background: var(--type-express);
+    color: #f4f6fa;
+    font-family: 'M PLUS Rounded 1c', 'Noto Sans JP', sans-serif;
+    font-weight: 800;
+    font-size: 42px;
+    line-height: 1.05;
+    letter-spacing: 0.22em;
+    padding-left: 0.22em;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1.5px solid var(--border-dark);
+    transform: scaleY(1.06);
+  }
+
+  .dest-num-row {
+    display: grid;
+    grid-template-columns: 38% 62%;
+    height: 62px;
+    background: #d8dce2;
+  }
+
+  .orig-dest-col {
+    border-right: 1.5px solid var(--border-dark);
+    display: flex;
+    flex-direction: column;
+  }
+  .orig-cell, .dest-cell {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    font-size: 20px;
+    font-weight: 700;
+    color: #181a1d;
+    transform: scaleY(1.12);
+  }
+  .orig-cell {
+    border-bottom: 1px solid var(--border-grid);
+  }
+
+  .train-num-col {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px 0 14px;
+    position: relative;
+  }
+  .train-num-val {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #141619;
+    transform: scaleY(1.12);
+    flex: 1;
+    text-align: center;
+  }
+  .train-num-suffix {
+    font-size: 16px;
+    font-weight: 700;
+    color: #3a3f46;
+    align-self: flex-end;
+    padding-bottom: 8px;
+  }
+
+  /* 右上：運用記号 + 両数 + 乗務終了 */
+  .top-right {
+    display: flex;
+    flex-direction: column;
+    background: #cfd4dc;
+  }
+
+  .car-info-row {
+    height: 60px;
+    display: grid;
+    grid-template-columns: 42% 58%;
+    border-bottom: 1.5px solid var(--border-dark);
+    background: #c6ccd4;
+  }
+  .op-symbol {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 38px;
+    font-weight: 700;
+    color: #181a1d;
+    border-right: 1px solid #8c939e;
+    transform: scaleY(1.12);
+  }
+  .car-count-box {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    padding-top: 8px;
+    gap: 6px;
+    color: #181a1d;
+  }
+  .car-num {
+    font-size: 38px;
+    font-weight: 700;
+    line-height: 1;
+    transform: scaleY(1.12);
+  }
+  .car-unit {
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .duty-end-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 23px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    padding-left: 0.14em;
+    color: #2c3138;
+    background: linear-gradient(180deg, #c9cfd7 0%, #b6bdc6 100%);
+    cursor: pointer;
+  }
+  .duty-end-btn:active {
+    background: #9ea6b0;
+  }
+
+  /* メインボディ：左時刻表 + 右時計・記事 */
+  .main-body {
+    display: grid;
+    grid-template-columns: 58% 42%;
+    min-height: 510px;
+  }
+
+  /* 左側：時刻表テーブル */
+  .timetable-pane {
+    border-right: 2px solid var(--border-dark);
+    display: flex;
+    flex-direction: column;
+    background: #d7dbe0;
+  }
+
+  .tt-row {
+    display: grid;
+    grid-template-columns: 23% 38.5% 38.5%;
+    height: 31px;
+    border-bottom: 1px solid #7c838d;
+    align-items: center;
+    cursor: pointer;
+  }
+  .tt-row:nth-child(even) { background: var(--row-even); }
+  .tt-row:nth-child(odd) { background: var(--row-odd); }
+  .tt-row.active-stop {
+    background: var(--row-active) !important;
+  }
+
+  /* 路線境界セパレータ行（外・名本 など） */
+  .tt-separator {
+    height: 31px;
+    border-bottom: 1px solid #7c838d;
+    background: #cfd4dc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    padding-left: 0.22em;
+    color: #1c1f23;
+    transform: scaleY(1.06);
+  }
+
+  .st-name {
+    height: 100%;
+    border-right: 1px solid #7c838d;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 5px;
+    font-size: 17px;
+    font-weight: 700;
+    color: #16181b;
+    transform: scaleY(1.14);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .st-name.pass-st {
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #3b4048;
+    transform: scaleY(1.05);
+  }
+
+  .time-cell {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    font-weight: 700;
+    color: #141619;
+    letter-spacing: 0.02em;
+    transform: scaleY(1.12);
+    position: relative;
+  }
+  .arr-cell {
+    border-right: 1px solid #7c838d;
+  }
+  .sec-sup {
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 2px;
+    align-self: flex-start;
+    margin-top: 3px;
+  }
+  .cross-mark {
+    position: absolute;
+    right: -6px;
+    font-size: 12px;
+    font-weight: 900;
+    color: #111;
+    z-index: 2;
+  }
+  .diagram-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #b83232;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    width: 14px;
+    height: 15px;
+    margin-left: 4px;
+    border-radius: 1px;
+  }
+
+  /* 右側：時計 + 記事パネル */
+  .right-pane {
+    display: flex;
+    flex-direction: column;
+    background: #cfd4dc;
+  }
+
+  .clock-panel {
+    padding: 10px 8px 8px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-bottom: 1.5px solid var(--border-dark);
+    background: #d4d8df;
+  }
+
+  .analog-clock {
+    width: 108px;
+    height: 108px;
+    border-radius: 50%;
+    border: 1.5px solid #494f57;
+    background: #dde1e7;
+    position: relative;
+    margin-bottom: 8px;
+  }
+
+  .digital-clock {
+    font-size: 25px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #16181b;
+    transform: scaleY(1.12);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .notes-header {
+    background: #777e88;
+    color: #f4f6f9;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-bottom: 1px solid var(--border-dark);
+    letter-spacing: 0.15em;
+  }
+
+  .notes-body {
+    flex: 1;
+    background: #bfc5ce;
+    padding: 4px 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.28;
+    color: #181a1e;
+  }
+  .note-item {
+    border-bottom: 1px solid #9ba2ad;
+    padding-bottom: 3px;
+  }
+
+  /* モーダル（PDF解析・列車検索） */
+  .modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.72);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .modal-backdrop.open { display: flex; }
+
+  .modal-card {
+    background: #1e2228;
+    color: #f0f3f7;
+    width: 100%;
+    max-width: 540px;
+    border-radius: 8px;
+    border: 1px solid #444c58;
+    padding: 18px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-card h3 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    border-bottom: 1px solid #383f4a;
+    padding-bottom: 8px;
+  }
+  .modal-section {
+    margin-bottom: 14px;
+    background: #15181d;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #2e343e;
+  }
+  .modal-section label {
+    display: block;
+    font-size: 12px;
+    color: #aeb7c4;
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+  .preset-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chip {
+    background: #2c333d;
+    border: 1px solid #4b5563;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: 700;
+  }
+  .chip:hover { background: #3b479e; }
+  .log-box {
+    font-family: monospace;
+    font-size: 11px;
+    background: #0d0f12;
+    color: #7ee787;
+    padding: 8px;
+    border-radius: 4px;
+    margin-top: 8px;
+    max-height: 110px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+  }
+</style>
+</head>
+<body>
+
+  <div class="control-bar">
+    <div class="control-group">
+      <input type="text" id="quickTrainInput" placeholder="列車番号 (例:778)">
+      <button class="btn" onclick="applyTrainByNumber()">適用</button>
+    </div>
+    <div class="control-group">
+      <button class="btn btn-sub" onclick="openModal()">📄 名鉄PDF解析 / 一覧</button>
+      <button class="btn btn-sub" onclick="toggleSimClock()" id="clockModeBtn">時計: 列車時刻連動</button>
+    </div>
+  </div>
+
+  <div class="tablet-bezel">
+    <div class="screen" id="tabletScreen">
+      <!-- ステータスバー -->
+      <div class="status-bar">
+        <div class="status-left">列車一覧</div>
+        <div class="status-center" id="depotName">犬山乗務区</div>
+        <div class="status-right">
+          <div class="brightness-box">
+            <span onclick="setDim(true)">☀</span>
+            <span onclick="setDim(false)">－</span>
+            <span onclick="setDim(false)">＋</span>
+          </div>
+          <span>⋮</span>
+        </div>
+      </div>
+
+      <!-- 上部ヘッダグリッド -->
+      <div class="top-grid">
+        <div class="top-left">
+          <div class="train-type-box" id="trainTypeBox">急行</div>
+          <div class="dest-num-row">
+            <div class="orig-dest-col">
+              <div class="orig-cell" id="origStation"><span>鵜</span><span>沼</span></div>
+              <div class="dest-cell" id="destStation"><span>国</span><span>府</span></div>
+            </div>
+            <div class="train-num-col">
+              <div class="train-num-val" id="trainNumberDisp">778</div>
+              <div class="train-num-suffix">列車</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="top-right">
+          <div class="car-info-row">
+            <div class="op-symbol" id="opSymbol">M</div>
+            <div class="car-count-box">
+              <span class="car-num" id="carCount">8</span>
+              <span class="car-unit">両</span>
+            </div>
+          </div>
+          <div class="duty-end-btn" onclick="alert('乗務終了確認画面（シミュレーション）')">乗務終了</div>
+        </div>
+      </div>
+
+      <!-- メインボディ -->
+      <div class="main-body">
+        <div class="timetable-pane" id="timetablePane"></div>
+
+        <div class="right-pane">
+          <div class="clock-panel">
+            <svg class="analog-clock" id="analogClock" viewBox="0 0 100 100">
+              <g id="clockTicks"></g>
+              <line id="hourHand" x1="50" y1="50" x2="50" y2="25" stroke="#181a1d" stroke-width="3.2" stroke-linecap="round"/>
+              <line id="minHand" x1="50" y1="50" x2="50" y2="14" stroke="#181a1d" stroke-width="2.2" stroke-linecap="round"/>
+              <line id="secHand" x1="50" y1="53" x2="50" y2="11" stroke="#2c3138" stroke-width="1" stroke-linecap="round"/>
+              <circle cx="50" cy="50" r="2.6" fill="#181a1d"/>
+            </svg>
+            <div class="digital-clock" id="digitalClock">07 : 30 : 26</div>
+          </div>
+
+          <div class="notes-header">記事</div>
+          <div class="notes-body" id="notesBody"></div>
+        </div>
+      </div>
+    </div>
+    <div class="bezel-label">MJ10029</div>
+  </div>
+
+  <!-- 解析・検索モーダル -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal-card">
+      <h3>名鉄時刻表 PDF自動解析 & 列車選択</h3>
+
+      <div class="modal-section">
+        <label>① 収録済みプリセット列車（クリックで即適用）</label>
+        <div class="preset-chips" id="presetChips"></div>
+      </div>
+
+      <div class="modal-section">
+        <label>② 名鉄公式 路線別時刻表PDFを読み込んで解析</label>
+        <p style="font-size:11px; color:#9aa4b2; margin:0 0 8px 0;">
+          名鉄HP（meitetsu.co.jp/train/timetable/）からダウンロードした路線別時刻表PDFを選択すると、全ページの列車番号・種別・停車駅・時刻を自動抽出します。
+        </p>
+        <input type="file" id="pdfFileInput" accept="application/pdf" style="font-size:12px; color:#fff; margin-bottom:8px; width:100%;">
+        <div style="display:flex; gap:6px;">
+          <button class="btn" onclick="parseUploadedPdf()">PDFを解析して登録</button>
+          <button class="btn btn-sub" onclick="clearSavedTrains()">保存データ初期化</button>
+        </div>
+        <div class="log-box" id="pdfLog">待機中: PDFファイルを選択してください...</div>
+      </div>
+
+      <div class="modal-section">
+        <label>③ 列車番号で検索・適用</label>
+        <div style="display:flex; gap:6px;">
+          <input type="text" id="modalTrainInput" placeholder="例: 778, 1620S, 370A" style="flex:1; background:#0d0f12; border:1px solid #48505c; color:#fff; padding:6px 10px; border-radius:4px; font-weight:700;">
+          <button class="btn" onclick="applyFromModal()">列車を適用</button>
+        </div>
+      </div>
+
+      <div style="text-align:right;">
+        <button class="btn btn-sub" onclick="closeModal()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  const TYPE_COLORS = {
+    '急行': '#3b479e',
+    '普通': '#2e3338',
+    '準急': '#26734d',
+    '快急': '#2d4ea3',
+    '特急': '#b8232a',
+    '快特': '#9c1b22',
+    'ミュースカイ': '#1d63b8',
+    'μＳ': '#1d63b8'
+  };
+
+  // デフォルト収録ダイヤ（IMG_0257.png / IMG_9673.jpeg 再現含む）
+  const DEFAULT_TRAINS = {
+    '778': {
+      number: '778',
+      depot: '犬山乗務区',
+      type: '急行',
+      origin: '鵜沼',
+      dest: '国府',
+      opSymbol: 'M',
+      cars: '8',
+      baseTime: '07:30:26',
+      activeRow: 1,
+      notes: [
+        '犬山で3778列車併結',
+        'C上小駅係員乗降完了合図確認',
+        'M上小乗降完了合図禁止'
+      ],
+      stops: [
+        { name: '岩倉', arr: '07:29', arrSec: '50', dep: '07:30', depSec: '40' },
+        { name: '西春', arr: '07:34', arrSec: '20', dep: '07:35', depSec: '00' },
+        { name: '上小', arr: '07:37', arrSec: '40', dep: '07:38', depSec: '30' },
+        { name: '分岐', pass: true, dep: '07:41', depSec: '40' },
+        { name: '栄生', arr: '07:43', arrSec: '40', dep: '07:44', depSec: '', badge: '図' },
+        { name: '名古', arr: '07:46', arrSec: '50', dep: '07:47', depSec: '40' },
+        { name: '山王', pass: true, dep: '07:49', depSec: '35' },
+        { name: '金山', arr: '07:51', arrSec: '10', dep: '07:52', depSec: '', badge: '図' },
+        { separator: '外・名本' },
+        { name: '神宮', arr: '07:54', arrSec: '30', dep: '07:55', depSec: '30' },
+        { name: '堀田', arr: '07:57', arrSec: '30', dep: '07:58', depSec: '30' },
+        { name: '本笠', pass: true, dep: '08:02', depSec: '20' },
+        { name: '鳴海', arr: '08:05', arrSec: '50', dep: '08:06', depSec: '20' },
+        { name: '中京', pass: true, dep: '08:09', depSec: '20' },
+        { name: '前後', arr: '08:10', arrSec: '50', dep: '08:11', depSec: '20' },
+        { name: '豊明', pass: true, dep: '08:13', depSec: '00' }
+      ]
+    },
+    '1620S': {
+      number: '1620S',
+      depot: '神楽（土休日）',
+      type: '普通',
+      origin: '富貴',
+      dest: '内海',
+      opSymbol: 'S',
+      cars: '4',
+      baseTime: '16:02:30',
+      activeRow: 0,
+      notes: [
+        '1223S 別曽池信号場 団',
+        '4と臨時行違い'
+      ],
+      stops: [
+        { name: '富貴', arr: '', arrSec: '', dep: '16:04', depSec: '00' },
+        { name: '別曽', pass: true, dep: '16:07', depSec: '00' },
+        { name: '上野', arr: '16:09', arrSec: '25', dep: '16:09', depSec: '55' },
+        { name: '美浜', arr: '16:11', arrSec: '25', dep: '16:11', depSec: '55' },
+        { name: '知奥', arr: '16:13', arrSec: '50', dep: '16:14', depSec: '20', cross: true },
+        { name: '野間', arr: '16:16', arrSec: '15', dep: '16:16', depSec: '45' },
+        { name: '内海', arr: '16:21', arrSec: '10', dep: '', depSec: '' }
+      ]
+    },
+    '1520S': {
+      number: '1520S',
+      depot: '犬山乗務区',
+      type: '準急',
+      origin: '新可',
+      dest: '中部',
+      opSymbol: 'S',
+      cars: '4',
+      baseTime: '15:18:10',
+      activeRow: 0,
+      notes: [
+        '犬山線・常滑線直通',
+        '神宮前駅乗務員交代'
+      ],
+      stops: [
+        { name: '犬山', arr: '15:17', arrSec: '30', dep: '15:19', depSec: '00' },
+        { name: '柏森', arr: '15:23', arrSec: '10', dep: '15:23', depSec: '40' },
+        { name: '江南', arr: '15:26', arrSec: '20', dep: '15:27', depSec: '00' },
+        { name: '岩倉', arr: '15:31', arrSec: '30', dep: '15:32', depSec: '10' },
+        { name: '名古', arr: '15:43', arrSec: '00', dep: '15:44', depSec: '00' },
+        { name: '金山', arr: '15:47', arrSec: '30', dep: '15:48', depSec: '10' },
+        { separator: '名本・常滑' },
+        { name: '神宮', arr: '15:50', arrSec: '20', dep: '15:51', depSec: '00' },
+        { name: '太田', arr: '16:02', arrSec: '15', dep: '16:03', depSec: '00' },
+        { name: '中部', arr: '16:24', arrSec: '30', dep: '', depSec: '' }
+      ]
+    },
+    '370A': {
+      number: '370A',
+      depot: '名古屋乗務区',
+      type: '特急',
+      origin: '岐阜',
+      dest: '豊橋',
+      opSymbol: 'A',
+      cars: '6',
+      baseTime: '17:01:15',
+      activeRow: 1,
+      notes: [
+        '一部特別車（1・2号車）',
+        '知立駅緩急接続'
+      ],
+      stops: [
+        { name: '岐阜', arr: '', arrSec: '', dep: '17:01', depSec: '00' },
+        { name: '一宮', arr: '17:09', arrSec: '20', dep: '17:10', depSec: '00' },
+        { name: '国府', arr: '17:14', arrSec: '30', dep: '17:15', depSec: '00' },
+        { name: '名古', arr: '17:25', arrSec: '10', dep: '17:26', depSec: '30' },
+        { name: '金山', arr: '17:30', arrSec: '00', dep: '17:30', depSec: '40' },
+        { name: '神宮', arr: '17:32', arrSec: '50', dep: '17:33', depSec: '30' },
+        { name: '知立', arr: '17:46', arrSec: '10', dep: '17:47', depSec: '00' },
+        { name: '東岡', arr: '17:58', arrSec: '20', dep: '17:59', depSec: '00' },
+        { name: '豊橋', arr: '18:22', arrSec: '30', dep: '', depSec: '' }
+      ]
+    },
+    '034': {
+      number: '034',
+      depot: '名古屋乗務区',
+      type: 'μＳ',
+      origin: '岐阜',
+      dest: '中部',
+      opSymbol: 'M',
+      cars: '4',
+      baseTime: '14:11:05',
+      activeRow: 0,
+      notes: [
+        '全車特別車（ミューチケット必要）',
+        '名鉄名古屋〜中部国際空港ノンストップ'
+      ],
+      stops: [
+        { name: '岐阜', arr: '', arrSec: '', dep: '14:11', depSec: '00' },
+        { name: '一宮', arr: '14:19', arrSec: '10', dep: '14:19', depSec: '40' },
+        { name: '国府', arr: '14:24', arrSec: '10', dep: '14:24', depSec: '35' },
+        { name: '名古', arr: '14:35', arrSec: '00', dep: '14:36', depSec: '00' },
+        { name: '金山', arr: '14:39', arrSec: '30', dep: '14:40', depSec: '00' },
+        { name: '神宮', arr: '14:42', arrSec: '10', dep: '14:42', depSec: '35' },
+        { separator: '常滑・空港' },
+        { name: '中部', arr: '15:04', arrSec: '00', dep: '', depSec: '' }
+      ]
+    }
+  };
+
+  let trainDatabase = loadTrains();
+  let currentTrainId = '778';
+  let useRealtimeClock = false;
+  let simSecondsOffset = 0;
+
+  function loadTrains() {
+    try {
+      const saved = localStorage.getItem('meitetsu_timetables_v2');
+      if (saved) {
+        return { ...DEFAULT_TRAINS, ...JSON.parse(saved) };
+      }
+    } catch (e) {}
+    return { ...DEFAULT_TRAINS };
+  }
+
+  function saveParsedTrains(newTrains) {
+    try {
+      const existing = JSON.parse(localStorage.getItem('meitetsu_timetables_v2') || '{}');
+      const merged = { ...existing, ...newTrains };
+      localStorage.setItem('meitetsu_timetables_v2', JSON.stringify(merged));
+      trainDatabase = { ...DEFAULT_TRAINS, ...merged };
+      renderPresetChips();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function clearSavedTrains() {
+    localStorage.removeItem('meitetsu_timetables_v2');
+    trainDatabase = { ...DEFAULT_TRAINS };
+    renderPresetChips();
+    document.getElementById('pdfLog').textContent = '保存データを初期化しました。';
+  }
+
+  // 文字均等割り付け用スパン生成
+  function formatSpacedChars(str) {
+    if (!str) return '';
+    const chars = Array.from(str.trim());
+    return chars.map(c => `<span>${c}</span>`).join('');
+  }
+
+  function renderTrain(trainId) {
+    const key = Object.keys(trainDatabase).find(k => k.toUpperCase() === trainId.trim().toUpperCase());
+    if (!key) {
+      alert(`列車番号「${trainId}」が見つかりません。
+「📄 名鉄PDF解析 / 一覧」から路線別時刻表PDFを読み込むか、収録列車を選択してください。`);
+      return false;
+    }
+    currentTrainId = key;
+    const t = trainDatabase[key];
+
+    document.getElementById('depotName').textContent = t.depot || '名鉄乗務区';
+    const typeBox = document.getElementById('trainTypeBox');
+    typeBox.textContent = t.type;
+    typeBox.style.background = TYPE_COLORS[t.type] || '#3b479e';
+
+    document.getElementById('origStation').innerHTML = formatSpacedChars(t.origin.slice(0, 2));
+    document.getElementById('destStation').innerHTML = formatSpacedChars(t.dest.slice(0, 2));
+    document.getElementById('trainNumberDisp').textContent = t.number;
+    document.getElementById('opSymbol').textContent = t.opSymbol || 'M';
+    document.getElementById('carCount').textContent = t.cars || '4';
+
+    // 時刻表行の描画（最低16行枠を確保して実機グリッド感を維持）
+    const pane = document.getElementById('timetablePane');
+    pane.innerHTML = '';
+    const totalRows = Math.max(16, t.stops.length);
+
+    for (let i = 0; i < totalRows; i++) {
+      const item = t.stops[i];
+      if (!item) {
+        const emptyRow = document.createElement('div');
+        emptyRow.className = 'tt-row';
+        emptyRow.innerHTML = `<div class="st-name"></div><div class="time-cell arr-cell"></div><div class="time-cell"></div>`;
+        pane.appendChild(emptyRow);
+        continue;
+      }
+
+      if (item.separator) {
+        const sep = document.createElement('div');
+        sep.className = 'tt-separator';
+        sep.textContent = item.separator;
+        pane.appendChild(sep);
+        continue;
+      }
+
+      const row = document.createElement('div');
+      row.className = 'tt-row' + (i === t.activeRow ? ' active-stop' : '');
+      row.onclick = () => {
+        t.activeRow = i;
+        renderTrain(currentTrainId);
+      };
+
+      const stHtml = item.pass
+        ? `<div class="st-name pass-st">${item.name}</div>`
+        : `<div class="st-name">${formatSpacedChars(item.name.slice(0, 2))}</div>`;
+
+      const arrHtml = item.arr
+        ? `${item.arr}<span class="sec-sup">${item.arrSec || '00'}</span>${item.cross ? '<span class="cross-mark">×</span>' : ''}`
+        : `${item.cross ? '<span class="cross-mark">×</span>' : ''}`;
+
+      const depHtml = item.dep
+        ? `${item.dep}<span class="sec-sup">${item.depSec || ''}</span>${item.badge ? `<span class="diagram-badge">${item.badge}</span>` : ''}`
+        : '';
+
+      row.innerHTML = `
+        ${stHtml}
+        <div class="time-cell arr-cell">${arrHtml}</div>
+        <div class="time-cell">${depHtml}</div>
+      `;
+      pane.appendChild(row);
+    }
+
+    // 記事欄
+    const notesBody = document.getElementById('notesBody');
+    notesBody.innerHTML = (t.notes || []).map(n => `<div class="note-item">${n}</div>`).join('');
+
+    simSecondsOffset = 0;
+    updateClockDisplay();
+    return true;
+  }
+
+  function applyTrainByNumber() {
+    const val = document.getElementById('quickTrainInput').value.trim();
+    if (val) renderTrain(val);
+  }
+
+  function applyFromModal() {
+    const val = document.getElementById('modalTrainInput').value.trim();
+    if (val && renderTrain(val)) {
+      closeModal();
+    }
+  }
+
+  function setDim(dimmed) {
+    const scr = document.getElementById('tabletScreen');
+    if (dimmed) scr.classList.toggle('dimmed');
+    else scr.classList.remove('dimmed');
+  }
+
+  // 時計描画
+  function initClockTicks() {
+    const g = document.getElementById('clockTicks');
+    for (let i = 0; i < 60; i++) {
+      const angle = i * 6 * Math.PI / 180;
+      const isMajor = i % 5 === 0;
+      const r1 = isMajor ? 41 : 44;
+      const r2 = 47;
+      const x1 = 50 + r1 * Math.sin(angle);
+      const y1 = 50 - r1 * Math.cos(angle);
+      const x2 = 50 + r2 * Math.sin(angle);
+      const y2 = 50 - r2 * Math.cos(angle);
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1);
+      line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2);
+      line.setAttribute('y2', y2);
+      line.setAttribute('stroke', '#333840');
+      line.setAttribute('stroke-width', isMajor ? '1.6' : '0.7');
+      g.appendChild(line);
+    }
+  }
+
+  function toggleSimClock() {
+    useRealtimeClock = !useRealtimeClock;
+    document.getElementById('clockModeBtn').textContent =
+      useRealtimeClock ? '時計: 現在実時刻' : '時計: 列車時刻連動';
+    updateClockDisplay();
+  }
+
+  function updateClockDisplay() {
+    let h, m, s;
+    if (useRealtimeClock) {
+      const now = new Date();
+      h = now.getHours();
+      m = now.getMinutes();
+      s = now.getSeconds();
+    } else {
+      const t = trainDatabase[currentTrainId] || DEFAULT_TRAINS['778'];
+      const parts = (t.baseTime || '07:30:26').split(':').map(Number);
+      let total = parts[0] * 3600 + parts[1] * 60 + parts[2] + simSecondsOffset;
+      total = ((total % 86400) + 86400) % 86400;
+      h = Math.floor(total / 3600);
+      m = Math.floor((total % 3600) / 60);
+      s = total % 60;
+    }
+
+    const pad = n => String(n).padStart(2, '0');
+    document.getElementById('digitalClock').textContent = `${pad(h)} : ${pad(m)} : ${pad(s)}`;
+
+    const secDeg = s * 6;
+    const minDeg = m * 6 + s * 0.1;
+    const hourDeg = (h % 12) * 30 + m * 0.5;
+
+    document.getElementById('secHand').setAttribute('transform', `rotate(${secDeg} 50 50)`);
+    document.getElementById('minHand').setAttribute('transform', `rotate(${minDeg} 50 50)`);
+    document.getElementById('hourHand').setAttribute('transform', `rotate(${hourDeg} 50 50)`);
+  }
+
+  setInterval(() => {
+    simSecondsOffset++;
+    updateClockDisplay();
+  }, 1000);
+
+  // モーダル制御
+  function openModal() {
+    renderPresetChips();
+    document.getElementById('modalBackdrop').classList.add('open');
+  }
+  function closeModal() {
+    document.getElementById('modalBackdrop').classList.remove('open');
+  }
+
+  function renderPresetChips() {
+    const container = document.getElementById('presetChips');
+    container.innerHTML = '';
+    Object.values(trainDatabase).forEach(t => {
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.textContent = `${t.number} [${t.type}] ${t.origin}→${t.dest}`;
+      chip.onclick = () => {
+        renderTrain(t.number);
+        closeModal();
+      };
+      container.appendChild(chip);
+    });
+  }
+
+  // 名鉄路線別時刻表PDFパーサー
+  async function parseUploadedPdf() {
+    const fileInput = document.getElementById('pdfFileInput');
+    const logEl = document.getElementById('pdfLog');
+    if (!fileInput.files || !fileInput.files[0]) {
+      logEl.textContent = 'エラー: PDFファイルを選択してください。';
+      return;
+    }
+
+    const file = fileInput.files[0];
+    logEl.textContent = `読み込み中: ${file.name} ...`;
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      logEl.textContent = `全 ${pdf.numPages} ページを解析中...`;
+
+      const extractedTrains = {};
+      const typeRegex = /^(μＳ|快特|特急|快急|急行|準急|普通)$/;
+      const trainNoRegex = /^[0-9]{2,4}[A-Z]?$/;
+      const timeRegex = /^([0-9]{1,2}):([0-9]{2})$/;
+
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const content = await page.getTextContent();
+        const items = content.items.map(it => ({
+          str: it.str.trim(),
+          x: Math.round(it.transform[4]),
+          y: Math.round(it.transform[5])
+        })).filter(it => it.str.length > 0);
+
+        // 列車番号候補を上部領域から検出
+        const trainCols = items.filter(it => trainNoRegex.test(it.str) && it.y > 400);
+        // 駅名候補を左端領域（x < 110）から検出
+        const stationRows = items
+          .filter(it => it.x < 115 && !/^[0-9:ﾚ=]+$/.test(it.str) && it.str.length >= 2 && it.str.length <= 6)
+          .sort((a, b) => b.y - a.y);
+
+        for (const col of trainCols) {
+          // 同列（x誤差±12以内）の要素を上から順に取得
+          const colItems = items
+            .filter(it => Math.abs(it.x - col.x) <= 12)
+            .sort((a, b) => b.y - a.y);
+
+          const typeItem = colItems.find(it => typeRegex.test(it.str));
+          const trainType = typeItem ? typeItem.str : '普通';
+
+          const stops = [];
+          for (const st of stationRows) {
+            const cell = colItems.find(it => Math.abs(it.y - st.y) <= 5);
+            if (!cell) continue;
+            if (timeRegex.test(cell.str)) {
+              const tStr = cell.str.padStart(5, '0');
+              stops.push({
+                name: st.str.replace(/^名鉄/, '').slice(0, 2),
+                arr: tStr,
+                arrSec: '00',
+                dep: tStr,
+                depSec: '30'
+              });
+            } else if (cell.str === 'ﾚ') {
+              stops.push({
+                name: st.str.replace(/^名鉄/, '').slice(0, 2),
+                pass: true,
+                dep: '',
+                depSec: ''
+              });
+            }
+          }
+
+          const activeStops = stops.filter(s => !s.pass);
+          if (activeStops.length >= 2) {
+            extractedTrains[col.str] = {
+              number: col.str,
+              depot: '名鉄路線別PDF',
+              type: trainType,
+              origin: activeStops[0].name,
+              dest: activeStops[activeStops.length - 1].name,
+              opSymbol: col.str.slice(-1).match(/[A-Z]/) ? col.str.slice(-1) : 'M',
+              cars: '4',
+              baseTime: (activeStops[0].dep || '08:00') + ':00',
+              activeRow: 0,
+              notes: [`PDF自動抽出 (${file.name} P.${p})`, `種別: ${trainType} / 列車番号: ${col.str}`],
+              stops: stops
+            };
+          }
+        }
+      }
+
+      const count = Object.keys(extractedTrains).length;
+      if (count > 0) {
+        saveParsedTrains(extractedTrains);
+        const sampleKeys = Object.keys(extractedTrains).slice(0, 12).join(', ');
+        logEl.textContent = `解析完了: ${count} 本の列車を登録しました！
+抽出例: ${sampleKeys}
+上の検索欄に列車番号を入力して適用できます。`;
+      } else {
+        logEl.textContent = `解析完了: 列車データを自動特定できませんでした（スキャン画像PDFまたはレイアウト差異の可能性があります）。`;
+      }
+    } catch (err) {
+      logEl.textContent = `PDF解析エラー: ${err.message}`;
+    }
+  }
+
+  // Enterキー対応
+  document.getElementById('quickTrainInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') applyTrainByNumber();
+  });
+  document.getElementById('modalTrainInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') applyFromModal();
+  });
+
+  // 初期起動
+  initClockTicks();
+  renderTrain('778');
+</script>
+</body>
+</html>
